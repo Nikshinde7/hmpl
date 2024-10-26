@@ -55,7 +55,13 @@ const MEMO = `memo`;
 const INDICATORS = `indicators`;
 const AUTO_BODY = `autoBody`;
 const COMMENT = `hmpl`;
-const FORM_DATA = "formData";
+const FORM_DATA = `formData`;
+const RESPONSE_ERROR = `Bad response`;
+const REQUEST_INIT_ERROR = `RequestInit error`;
+const RENDER_ERROR = `Render error`;
+const REQUEST_OBJECT_ERROR = `Request Object error`;
+const PARSE_ERROR = `Parse error`;
+const COMPILE_ERROR = `Compile error`;
 const DEFAULT_AUTO_BODY = {
   formData: true
 };
@@ -93,9 +99,10 @@ const getTemplateWrapper = (str: string) => {
 };
 
 const getResponseElements = (response: string) => {
-  if (typeof response !== "string")
+  const typeResponse = typeof response;
+  if (typeResponse !== "string")
     createError(
-      "Bad response: Expected type string, but received type {type}."
+      `${RESPONSE_ERROR}: Expected type string, but received type ${typeResponse}`
     );
   const elWrapper = getTemplateWrapper(response);
   const elContent = elWrapper!["content"];
@@ -171,26 +178,32 @@ const makeRequest = (
     initRequest.window = windowOption;
   }
   if ((options as any).keepalive !== undefined) {
-    createWarning("RequestInit error: The 'keepalive' property is not yet supported");
+    createWarning(
+      `${REQUEST_INIT_ERROR}: The "keepalive" property is not yet supported`
+    );
   }
   if (headers) {
     if (checkObject(headers)) {
       const newHeaders = new Headers();
-      for (const header in headers) {
-        const [key, value] = header;
-        if (typeof value === "string") {
+      for (const key in headers) {
+        const value = headers[key];
+        const valueType = typeof value;
+        if (valueType === "string") {
           try {
             newHeaders.set(key, value);
           } catch (e) {
             throw e;
           }
         } else {
-          createError("RequestInit error: Expected type string, but received type {type}.");
+          createError(
+            `${REQUEST_INIT_ERROR}: Expected type string, but received type ${valueType}`
+          );
         }
-    initRequest.headers = newHeaders;
+      }
+      initRequest.headers = newHeaders;
     } else {
       createError(
-        'RequestInit error: Property must contain a value object.'
+        `${REQUEST_INIT_ERROR}: The "headers" property must contain a value object`
       );
     }
   }
@@ -199,7 +212,7 @@ const makeRequest = (
       initRequest.signal = AbortSignal.timeout(timeout);
     } else {
       createWarning(
-        "RequestInit error: The signal property overwrote the AbortSignal from timeout"
+        `${REQUEST_INIT_ERROR}: The "signal" property overwrote the AbortSignal from "timeout"`
       );
     }
   }
@@ -230,7 +243,7 @@ const makeRequest = (
       const nodes = (newContent as HTMLTemplateElement).content.childNodes;
       if (dataObj!.nodes) {
         const parentNode = dataObj!.parentNode! as ParentNode;
-        if (!parentNode) createError("ParentNode is null");
+        if (!parentNode) createError(`${RENDER_ERROR}: ParentNode is null`);
         const newNodes: ChildNode[] = [];
         const nodesLength = dataObj!.nodes.length;
         for (let i = 0; i < nodesLength; i++) {
@@ -275,7 +288,7 @@ const makeRequest = (
     } else {
       if (dataObj!.nodes) {
         const parentNode = dataObj!.parentNode! as ParentNode;
-        if (!parentNode) createError("Render error: parentNode is null");
+        if (!parentNode) createError(`${RENDER_ERROR}: ParentNode is null`);
         const nodesLength = dataObj!.nodes.length;
         for (let i = 0; i < nodesLength; i++) {
           const node = dataObj!.nodes[i];
@@ -378,7 +391,7 @@ const makeRequest = (
   const takeNodesFromCache = () => {
     if (dataObj!.memo!.isPending) {
       const parentNode = dataObj!.parentNode! as ParentNode;
-      if (!parentNode) createError("Render error: parentNode is null");
+      if (!parentNode) createError(`${RENDER_ERROR}: ParentNode is null`);
       const memoNodes = dataObj!.memo!.nodes!;
       const currentNodes = dataObj!.nodes!;
       const nodesLength = currentNodes!.length;
@@ -408,7 +421,9 @@ const makeRequest = (
       requestStatus = response.status as HMPLRequestStatus;
       updateStatusDepenencies(requestStatus);
       if (!response.ok) {
-        createError(`Response error: Response with status code ${requestStatus}`);
+        createError(
+          `${RESPONSE_ERROR}: Response with status code ${requestStatus}`
+        );
       }
       return response.text();
     })
@@ -501,14 +516,17 @@ const renderTemplate = (
       const method = (req.method || "GET").toLowerCase();
       if (getIsMethodValid(method)) {
         createError(
-          `Request Object error: ${METHOD} has only GET, POST, PUT, PATCH or DELETE values`
+          `${REQUEST_OBJECT_ERROR}: The "${METHOD}" property has only GET, POST, PUT, PATCH or DELETE values`
         );
       } else {
         const after = req.after;
-        if (after && isRequest) createError("EventTarget is undefined");
+        if (after && isRequest)
+          createError(`${RENDER_ERROR}: EventTarget is undefined`);
         const isModeUndefined = !req.hasOwnProperty(MODE);
         if (!isModeUndefined && typeof req.repeat !== "boolean") {
-          createError(`${MODE} has only boolean value`);
+          createError(
+            `${REQUEST_OBJECT_ERROR}: The "${MODE}" property has only boolean value`
+          );
         }
         const oldMode = isModeUndefined ? true : req.repeat;
         const modeAttr = oldMode ? "all" : "one";
@@ -519,7 +537,9 @@ const renderTemplate = (
           if (after) {
             if (req.memo) {
               if (!isAll) {
-                createError("Memoization works in the enabled repetition mode");
+                createError(
+                  `${REQUEST_OBJECT_ERROR}: Memoization works in the enabled repetition mode`
+                );
               } else {
                 isMemo = true;
               }
@@ -527,7 +547,9 @@ const renderTemplate = (
               isMemo = false;
             }
           } else {
-            createError("Request Object error: Memoization works in the enabled repetition mode");
+            createError(
+              `${REQUEST_OBJECT_ERROR}: Memoization works in the enabled repetition mode`
+            );
           }
         } else {
           if (isMemo) {
@@ -580,11 +602,11 @@ const renderTemplate = (
             const { trigger, content } = val;
             if (!trigger)
               createError(
-                "Request Object error: Indicator trigger error: Failed to activate or detect the indicator."
+                `${REQUEST_OBJECT_ERROR}: Failed to activate or detect the indicator`
               );
             if (!content)
               createError(
-                "Request Object error: Indicator trigger error: Failed to activate or detect the indicator."
+                `${REQUEST_OBJECT_ERROR}: Failed to activate or detect the indicator`
               );
             if (
               codes.indexOf(trigger as number) === -1 &&
@@ -593,7 +615,7 @@ const renderTemplate = (
               trigger !== "error"
             ) {
               createError(
-                "Request Object error: Failed to activate or detect the indicator."
+                `${REQUEST_OBJECT_ERROR}: Failed to activate or detect the indicator`
               );
             }
             const elWrapper = getTemplateWrapper(
@@ -612,7 +634,9 @@ const renderTemplate = (
             if (uniqueTriggers.indexOf(trigger) === -1) {
               uniqueTriggers.push(trigger);
             } else {
-              createError("Request Object error: Indicator trigger must be unique");
+              createError(
+                `${REQUEST_OBJECT_ERROR}: Indicator trigger must be unique`
+              );
             }
             newOn[`${trigger}`] = currentIndicator.content;
           }
@@ -642,14 +666,19 @@ const renderTemplate = (
                 }
               }
               if (!result) {
-                createError("Request Object error: ID referenced by request not found");
+                createError(
+                  `${REQUEST_OBJECT_ERROR}: ID referenced by request not found`
+                );
               }
               return result as HMPLRequestInit;
             } else {
               return {};
             }
           } else {
-            if (initId) createError("Request Object error: ID referenced by request not found");
+            if (initId)
+              createError(
+                `${REQUEST_OBJECT_ERROR}: ID referenced by request not found`
+              );
             return options as HMPLRequestInit;
           }
         };
@@ -686,7 +715,7 @@ const renderTemplate = (
                 }
                 if (!currentEl) {
                   createError(
-                    "Render error: The specified DOM element is not valid or cannot be found."
+                    `${RENDER_ERROR}: The specified DOM element is not valid or cannot be found`
                   );
                 }
                 reqEl = currentEl!;
@@ -698,7 +727,7 @@ const renderTemplate = (
             if (isDataObj || indicators) {
               if (!currentHMPLElement)
                 createError(
-                  "Render error: The specified DOM element is not valid or cannot be found."
+                  `${RENDER_ERROR}: The specified DOM element is not valid or cannot be found`
                 );
               dataObj = currentHMPLElement!.objNode!;
               if (!dataObj!) {
@@ -748,7 +777,7 @@ const renderTemplate = (
             : (currentOptions as HMPLRequestInit);
           if (!checkObject(requestInit) && requestInit !== undefined)
             createError(
-              "RequestInit error: Expected an object with initialization options."
+              `${REQUEST_INIT_ERROR}: Expected an object with initialization options`
             );
           makeRequest(
             reqEl,
@@ -785,7 +814,7 @@ const renderTemplate = (
           ) => {
             const els = reqMainEl!.querySelectorAll(selector);
             if (els.length === 0) {
-              createError("Render error: Selectors nodes not found");
+              createError(`${RENDER_ERROR}: Selectors nodes not found`);
             }
             const afterFn = isAll
               ? (evt: Event) => {
@@ -855,17 +884,23 @@ const renderTemplate = (
               );
             };
           } else {
-            createError(`Request Object error: ${AFTER} property doesn't work without EventTargets`);
+            createError(
+              `${REQUEST_OBJECT_ERROR}: The "${AFTER}" property doesn't work without EventTargets`
+            );
           }
         } else {
           if (!isModeUndefined) {
-            createError(`Request Object error: ${MODE} property doesn't work without ${AFTER}`);
+            createError(
+              `${REQUEST_OBJECT_ERROR}: The "${MODE}" property doesn't work without "${AFTER}" property`
+            );
           }
         }
         return requestFunction;
       }
     } else {
-      createError(`Request Object error: The "source" property are not found or empty`);
+      createError(
+        `${REQUEST_OBJECT_ERROR}: The "source" property are not found or empty`
+      );
     }
   };
 
@@ -884,9 +919,7 @@ const renderTemplate = (
           const currentIndex = Number(value);
           const currentRequest = requests[currentIndex];
           if (Number.isNaN(currentIndex) || currentRequest === undefined) {
-            createError(
-              "Request Object error: The request index is out of range or invalid."
-            );
+            createError(`${RENDER_ERROR}: Request object not found`);
           }
           currentRequest.el = currrentElement as Comment;
           currentRequest.nodeId = id;
@@ -923,7 +956,7 @@ const renderTemplate = (
           const hmplElement = els[i];
           const currentReqEl = hmplElement.el;
           if (currentReqEl.parentNode === null) {
-            createError(`Render error: "parentNode" is null`);
+            createError(`${RENDER_ERROR}: ParentNode is null`);
           }
           const currentReqFn = algorithm[i];
           const currentReq: HMPLRequest = {
@@ -947,7 +980,7 @@ const renderTemplate = (
     } else {
       const currentRequest = requests[0];
       if (currentRequest.el!.parentNode === null) {
-        createError('Render error: "ParentNode" is null');
+        createError(`${RENDER_ERROR}: ParentNode is null`);
       }
       reqFn = renderRequest(currentRequest, currentEl as Element);
     }
@@ -964,11 +997,13 @@ const validOptions = (
     currentOptions !== undefined
   )
     createError(
-      "RequestInit error: Expected an object with initialization options."
+      `${REQUEST_INIT_ERROR}: Expected an object with initialization options`
     );
   if (isObject && (currentOptions as HMPLRequestInit).get) {
     if (!checkFunction((currentOptions as HMPLRequestInit).get)) {
-      createError("RequestInit error: The get property has a function value");
+      createError(
+        `${REQUEST_INIT_ERROR}: The "get" property has a function value`
+      );
     }
   }
 };
@@ -976,17 +1011,19 @@ const validAutoBody = (autoBody: boolean | HMPLAutoBodyOptions) => {
   const isObject = checkObject(autoBody);
   if (typeof autoBody !== "boolean" && !isObject)
     createError(
-      "Request Object error: Expected a boolean or object, but got neither."
+      `${REQUEST_OBJECT_ERROR}: Expected a boolean or object, but got neither`
     );
   if (isObject) {
     for (const key in autoBody as HMPLAutoBodyOptions) {
       switch (key) {
         case FORM_DATA:
           if (typeof autoBody[FORM_DATA] !== "boolean")
-            createError("Request Object error: 'FORM_DATA' should be a boolean.");
+            createError(
+              `${REQUEST_OBJECT_ERROR}: The "formData" property should be a boolean`
+            );
           break;
         default:
-          createError(`Request Object error: Unexpected property '${key}'.`);
+          createError(`${REQUEST_OBJECT_ERROR}: Unexpected property "${key}"`);
           break;
       }
     }
@@ -998,12 +1035,12 @@ const validIdOptions = (currentOptions: HMPLIdentificationRequestInit) => {
       !currentOptions.hasOwnProperty("id") ||
       !currentOptions.hasOwnProperty("value")
     ) {
-      createError(
-        "Request Object error: Missing 'id' or 'value' property."
-      );
+      createError(`${REQUEST_OBJECT_ERROR}: Missing "id" or "value" property`);
     }
   } else {
-    createError("Request Object error: Invalid object format.");
+    createError(
+      `${REQUEST_OBJECT_ERROR}: IdentificationRequestInit must be of type object`
+    );
   }
 };
 const validIdentificationOptionsArray = (
@@ -1012,13 +1049,16 @@ const validIdentificationOptionsArray = (
   const ids: Array<string | number> = [];
   for (let i = 0; i < currentOptions.length; i++) {
     const idOptions = currentOptions[i];
-    if (!checkObject(idOptions)) createError(`Options is of type "object"`);
+    if (!checkObject(idOptions))
+      createError(`${REQUEST_OBJECT_ERROR}: Options is of type object`);
     validIdOptions(idOptions);
     const { id } = idOptions;
     if (typeof idOptions.id !== "string" && typeof idOptions.id !== "number")
-      createError(`ID must be a "string" or a "number".`);
+      createError(`${REQUEST_OBJECT_ERROR}: ID must be a string or a number`);
     if (ids.indexOf(id) > -1) {
-      createError(`ID with value "${id}" already exists`);
+      createError(
+        `${REQUEST_OBJECT_ERROR}: ID with value "${id}" already exists`
+      );
     } else {
       ids.push(id);
     }
@@ -1035,13 +1075,17 @@ export const compile: HMPLCompile = (
 ) => {
   if (typeof template !== "string")
     createError(
-      "Compile error: Template was not found or the type of the passed value is not string"
+      `${COMPILE_ERROR}: Template was not found or the type of the passed value is not string`
     );
-  if (!template) createError("Compile error: Template must not be a falsey value");
-  if (!checkObject(options)) createError("Options must be an object");
+  if (!template)
+    createError(`${COMPILE_ERROR}: Template must not be a falsey value`);
+  if (!checkObject(options))
+    createError(`${COMPILE_ERROR}: Options must be an object`);
   const isMemoUndefined = !options.hasOwnProperty(MEMO);
   if (!isMemoUndefined && typeof options[MEMO] !== "boolean")
-    createError(`Request Object error: The value of the property ${MEMO} must be a boolean value`);
+    createError(
+      `${REQUEST_OBJECT_ERROR}: The value of the property ${MEMO} must be a boolean value`
+    );
   const isAutoBodyUndefined = !options.hasOwnProperty(AUTO_BODY);
   if (!isAutoBodyUndefined) validAutoBody(options[AUTO_BODY]!);
   const requests: HMPLRequestsObject[] = [];
@@ -1050,7 +1094,8 @@ export const compile: HMPLCompile = (
   for (const match of template.matchAll(MAIN_REGEX)) {
     requestsIndexes.push(match.index);
   }
-  if (requestsIndexes.length === 0) createError(`Compile error: Request not found`);
+  if (requestsIndexes.length === 0)
+    createError(`${PARSE_ERROR}: Request not found`);
   const prepareText = (text: string) => {
     text = text.trim();
     text = text.replace(/\r?\n|\r/g, "");
@@ -1061,23 +1106,29 @@ export const compile: HMPLCompile = (
     for (const key in parsedData) {
       const value = parsedData[key];
       if (!requestOptions.includes(key))
-        createError(`Property ${key} is not processed`);
+        createError(
+          `${REQUEST_OBJECT_ERROR}: Property "${key}" is not processed`
+        );
       switch (key) {
         case INDICATORS:
           if (!Array.isArray(value)) {
-            createError(`The value of the property ${key} must be an array`);
+            createError(
+              `${REQUEST_OBJECT_ERROR}: The value of the property "${key}" must be an array`
+            );
           }
           break;
         case ID:
           if (typeof value !== "string" && typeof value !== "number") {
-            createError(`The value of the property ${key} must be a string`);
+            createError(
+              `${REQUEST_OBJECT_ERROR}: The value of the property "${key}" must be a string`
+            );
           }
           break;
         case MEMO:
         case MODE:
           if (typeof value !== "boolean") {
             createError(
-              `The value of the property ${key} must be a boolean value`
+              `${REQUEST_OBJECT_ERROR}: The value of the property "${key}" must be a boolean value`
             );
           }
           break;
@@ -1086,7 +1137,9 @@ export const compile: HMPLCompile = (
           break;
         default:
           if (typeof value !== "string") {
-            createError(`The value of the property ${key} must be a string`);
+            createError(
+              `${REQUEST_OBJECT_ERROR}: The value of the property "${key}" must be a string`
+            );
           }
           break;
       }
@@ -1121,7 +1174,7 @@ export const compile: HMPLCompile = (
         } else if (isClose) {
           if (currentBracketId === -1) {
             createError(
-              "Parse error: Invalid bracket ID detected. Please check the input format."
+              `${PARSE_ERROR}: Handling curly braces in the Request Object`
             );
           }
           if (currentBracketId === 1) {
@@ -1139,7 +1192,7 @@ export const compile: HMPLCompile = (
           if (isFinal) {
             if (prepareText(requestText)) {
               createError(
-                "Parse error: Invalid bracket ID detected. Please check the input format."
+                `${PARSE_ERROR}: There is no empty space between the curly brackets`
               );
             }
           } else {
@@ -1152,7 +1205,7 @@ export const compile: HMPLCompile = (
         const nextText = templateArr[nextId];
         if (nextText === undefined) {
           createError(
-            "Parse error: Invalid bracket ID detected. Please check the input format."
+            `${PARSE_ERROR}: Handling curly braces in the Request Object`
           );
         }
         const nextArr = nextText.split(BRACKET_REGEX).filter(Boolean);
@@ -1164,7 +1217,7 @@ export const compile: HMPLCompile = (
           if (isClose) {
             if (currentBracketId === -1) {
               createError(
-                "Parse error: Invalid bracket ID detected. Please check the input format."
+                `${PARSE_ERROR}: Handling curly braces in the Request Object`
               );
             }
             if (currentBracketId === 1) {
@@ -1189,7 +1242,7 @@ export const compile: HMPLCompile = (
             if (isFinal) {
               if (prepareText(currentNextText)) {
                 createError(
-                  "Parse error: Invalid bracket ID detected. Please check the input format."
+                  `${PARSE_ERROR}: There is no empty space between the curly brackets`
                 );
               }
             } else {
@@ -1200,7 +1253,7 @@ export const compile: HMPLCompile = (
       }
       if (currentBracketId !== -1) {
         createError(
-          "Parse error: Invalid bracket ID detected. Please check the input format."
+          `${PARSE_ERROR}: Handling curly braces in the Request Object`
         );
       }
     } else {
@@ -1208,7 +1261,7 @@ export const compile: HMPLCompile = (
     }
   }
   if (requests.length === 0) {
-    createError(`Request not found`);
+    createError(`${PARSE_ERROR}: Request not found`);
   }
   for (let i = 0; i < requests.length; i++) {
     const request = requests[i];
@@ -1228,7 +1281,7 @@ export const compile: HMPLCompile = (
       elWrapper.content.children.length !== 1
     ) {
       createError(
-        `Template include only one node with type "Element" or "Comment"`
+        `${RENDER_ERROR}: Template include only one node with type Element or Comment`
       );
     }
     const prepareNode = (node: ChildNode) => {
@@ -1257,7 +1310,7 @@ export const compile: HMPLCompile = (
         isRequest = isComment;
         currentEl = comment as Comment;
       } else {
-        createError("Element is undefined");
+        createError(`${RENDER_ERROR}: Element is undefined`);
       }
     }
     return currentEl;
