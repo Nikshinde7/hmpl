@@ -9,7 +9,7 @@
     "lint": "npx eslint src/**/* --fix",
     "lint:test": "npx eslint test/**/* --fix",
     "prebuild": "npm run lint",
-    "build": "tsc",
+    "build:package": "tsup",
     "test": "mocha --require ts-node/esm --experimental-specifier-resolution=node",
     "coverage": "c8 --reporter=lcov npm run test",
     "coverage:default": "c8 npm run test"
@@ -60,6 +60,7 @@
     "node-html-parser": "^6.1.12",
     "prettier": "^3.2.5",
     "ts-node": "^10.9.2",
+    "tsup": "^8.3.5",
     "typescript": "^5.6.3"
   }
 }
